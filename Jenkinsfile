@@ -1,52 +1,43 @@
 pipeline {
-  // CHANGE 1: Use Docker instead of 'any'
- agent any // Runs directly on the server, skipping the Docker check
+    agent any
+
     stages {
-        stage('Install') {
-             steps {
-                 sh 'npm install' // Only works if you installed Node manually!
-    }
-  }
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Shiva-77-P/sample.git'
+            }
+        }
 
-  stages {
-    stage('Checkout') {
-      steps {
-        git branch: 'main', url: 'https://github.com/Shiva-77-P/sample.git'
-      }
-    }
+        stage('Install Dependencies') {
+            steps {
+                // This assumes Node.js is installed on your Jenkins server
+                sh 'npm install'
+            }
+        }
 
-    stage('Install Dependencies') {
-      steps {
-        // Now this works because we are inside the 'node:18' container
-        sh 'npm install'
-      }
-    }
+        stage('Test') {
+            steps {
+                sh 'npm test || true'
+            }
+        }
 
-    stage('Test') {
-      steps {
-        sh 'npm test || true'
-      }
-    }
+        stage('Build Docker Image') {
+            steps {
+                // We removed 'apk add' because it only works on Alpine Linux.
+                // We assume Docker is already installed on your server.
+                sh 'docker build -t nodeapp:latest .'
+            }
+        }
 
-    // CRITICAL WARNING:
-    // To run 'docker build' INSIDE a Docker container (Docker-in-Docker),
-    // you need the socket mapping I added in 'args' above.
-    stage('Build Docker Image') {
-      steps {
-         // This might require the 'docker' CLI to be installed in the node image
-         // A safer bet for beginners is to install docker client first
-         sh 'apk add --no-cache docker-cli'
-         sh 'docker build -t nodeapp:latest .'
-      }
+        stage('Run Container') {
+            steps {
+                // 1. Stop old container (if running) so we don't get "Name already in use" error
+                sh 'docker stop nodeapp || true'
+                // 2. Remove old container
+                sh 'docker rm nodeapp || true'
+                // 3. Start the new one
+                sh 'docker run -d -p 3001:3000 --name nodeapp nodeapp:latest'
+            }
+        }
     }
-
-    stage('Run Container') {
-      steps {
-        // We must stop the old container before starting a new one, or it will fail
-        sh 'docker stop nodeapp || true'
-        sh 'docker rm nodeapp || true'
-        sh 'docker run -d -p 3001:3000 --name nodeapp nodeapp:latest'
-      }
-    }
-  }
 }
