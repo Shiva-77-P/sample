@@ -1,11 +1,10 @@
 pipeline {
   // CHANGE 1: Use Docker instead of 'any'
-  agent {
-    docker {
-      image 'node:18-alpine' 
-      // This image contains npm, node, AND docker-cli
-      // Note: You might need to map the docker socket if you want to build images inside it
-      args '-v /var/run/docker.sock:/var/run/docker.sock'
+ agent any // Runs directly on the server, skipping the Docker check
+    stages {
+        stage('Install') {
+             steps {
+                 sh 'npm install' // Only works if you installed Node manually!
     }
   }
 
